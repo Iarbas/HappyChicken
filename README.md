@@ -1,5 +1,5 @@
 # HappyChicken
-A little Pygame script for playing the Peppa Pig computer game.
+A little Pygame script for playing the computer game that is played inside the cartoon Peppa Pig.
 
 The following game is a clone of the game that is played in the cartoon Peppa Pig and the English name of that game is "Happy Mrs. Chicken". The German name for this game is "Das lustige Huehnchen" and I will call it here like that.
 
