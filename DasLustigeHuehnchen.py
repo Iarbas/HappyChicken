@@ -7,7 +7,7 @@
 # Datum:  01.02.2018
 # Lizenz: LGPLv3
 
-import sys, traceback, time
+import os, sys, traceback, time, math
 import pygame
 
 
@@ -20,7 +20,8 @@ def game_start():
             print "Warning, sound disabled"
 
         # Constants
-        background_color = (0, 162, 241)
+        background_color = (0, 162, 241)  # Color of the underground
+        pathtotextures = os.path.dirname(os.path.realpath(__file__)) + "/textures/"  # path to the textures
 
         # Initialize Pygame, the clock (for FPS), and a simple counter
         pygame.init()
@@ -33,9 +34,24 @@ def game_start():
         # print info
 
         # The info can be used to create a full screen:
-        screen = pygame.display.set_mode((300, 200))
-        # screen = pygame.display.set_mode((info.current_w, info.current_h), pygame.FULLSCREEN, 32)
+        # window_width = 300
+        # window_height = 200
+
+        window_width = info.current_w
+        window_height = info.current_h
+
+        print window_width
+        print window_height
+
+        # screen = pygame.display.set_mode((window_width, window_height))
+        screen = pygame.display.set_mode((window_width, window_height), pygame.FULLSCREEN, 32)
         pygame.display.set_caption('Das lustige Huehnchen')
+
+        # Load the textures
+        shrink_value_chicken = int(math.floor(0.00007 * window_width * window_height))
+
+        crlcm = pygame.image.load(pathtotextures + "chicken_right_left_closemouth.png")
+        crlcm = pygame.transform.smoothscale(crlcm, (shrink_value_chicken, shrink_value_chicken))
 
         # Draw the background.
         screen.fill(background_color)
@@ -48,9 +64,11 @@ def game_start():
         text_width, text_height = game_font.size("000")
 
         pygame.draw.ellipse(screen, (0, 120, 163),
-                            (300 - 2.25 * text_width, 0.75 * text_height, 1.5 * text_width, 1.5 * text_height), 0)
+                            (window_width - 2.25 * text_width, 0.75 * text_height, 1.5 * text_width, 1.5 * text_height), 0)
 
-        screen.blit(egg_counter_text, (300 - 2 * text_width, text_height))
+        screen.blit(crlcm, (window_width/2 - shrink_value_chicken, window_height/2 - shrink_value_chicken))
+
+        screen.blit(egg_counter_text, (window_width - 2 * text_width, text_height))
 
         pygame.display.update()
 
@@ -88,9 +106,12 @@ def game_start():
             text_width, text_height = game_font.size(text_string)
 
             pygame.draw.ellipse(screen, (0, 120, 163),
-                                (300 - 2.25 * text_width, 0.75 * text_height, 1.5 * text_width, 1.5 * text_height), 0)
+                                (window_width - 2.25 * text_width, 0.75 * text_height, 1.5 * text_width,
+                                 1.5 * text_height), 0)
 
-            screen.blit(egg_counter_text, (300 - 2 * text_width, text_height))
+            screen.blit(crlcm, ((window_width - shrink_value_chicken) / 2, (window_height - shrink_value_chicken) / 2))
+
+            screen.blit(egg_counter_text, (window_width - 2 * text_width, text_height))
 
             pygame.display.update()
 
@@ -114,3 +135,5 @@ if __name__ == "__main__":
     print "###################################################\n\n"
 
     game_start()
+
+    sys.exit(0)
