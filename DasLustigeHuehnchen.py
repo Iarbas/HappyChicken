@@ -7,21 +7,86 @@
 # Datum:  01.02.2018
 # Lizenz: LGPLv3
 
-import os, sys, traceback, time, math
+import os, sys, traceback, time, math, random
 import pygame
+
+
+def calc_position(end_position, old_position, distance_old, velocity, time_step, boundaries, step_size, propability,
+                  right):
+
+    position = old_position
+    distance = math.sqrt((end_position[0] - old_position[0]) ** 2 + (end_position[1] - old_position[1]) ** 2)
+
+    # Generation of a new end point.
+    if distance < 0.5 or distance > distance_old:
+        # Define a random share of the horizont and vertical move.
+        step_share = random.random()
+
+        # At first decide left or right
+        if propability[0] < random.random():
+            # Turn left.
+            right = False
+            end_position[0] = old_position[0] - math.sqrt((step_size ** 2) * step_share)
+
+        else:
+            # Turn right.
+            right = True
+            end_position[0] = old_position[0] + math.sqrt((step_size ** 2) * step_share)
+
+        # Up or down
+        if propability[1] < random.random():
+            # Up.
+            end_position[1] = old_position[1] - math.sqrt((step_size ** 2) * (1 - step_share))
+
+        else:
+            # Down.
+            end_position[1] = old_position[1] + math.sqrt((step_size ** 2) * (1 - step_share))
+
+    # Or go further.
+    else:
+        a = 0
+        # TODO -> Geradengleichung?
+        # position[0] = 0
+        # position[1] = 0
+
+        # Turn the tides if we end up outside the boundaries.
+        if not 0 < position[0] < boundaries[0]:
+            end_position = position  # force new end point generation.
+            propability[0] = 1 - propability[0]  # TODO find end point inside the boundaries.
+
+        if not 0 < position[1] < boundaries[1]:
+            end_position = position
+            propability[1] = 1 - propability[1]
+
+    # Random change of propabilities.
+    if random.random() > 0.99:
+        propability = [random.random(), random.random()]
+
+    # Return the calculated stuff.
+    help_array = [end_position[0], end_position[1], position[0], position[1], distance, propability[0], propability[1]]
+
+    return help_array, right
 
 
 def game_start():
     try:
         # Check if sound and font are supported
         if not pygame.font:
-            print "Warning, fonts disabled"
+            print("Warning, fonts disabled")
         if not pygame.mixer:
-            print "Warning, sound disabled"
+            print("Warning, sound disabled")
 
         # Constants
         background_color = (0, 162, 241)  # Color of the underground
         pathtotextures = os.path.dirname(os.path.realpath(__file__)) + "/textures/"  # path to the textures
+        velocity = 3  # Pixels per second.
+        step_size = 20  # Step size of each move in pixel.
+
+        # Initiale values.
+        propability = [random.random(), random.random()]
+        distance = 0
+        time_step = 0
+        right = True
 
         # Initialize Pygame, the clock (for FPS), and a simple counter
         pygame.init()
@@ -33,15 +98,14 @@ def game_start():
         # Prints the info about the main screen resolution.
         # print info
 
-        # The info can be used to create a full screen:
+        # That info can be used to create a full screen:
         # window_width = 300
         # window_height = 200
 
         window_width = info.current_w
         window_height = info.current_h
 
-        print window_width
-        print window_height
+        boundaries = [window_width, window_height]
 
         # screen = pygame.display.set_mode((window_width, window_height))
         screen = pygame.display.set_mode((window_width, window_height), pygame.FULLSCREEN, 32)
@@ -52,6 +116,9 @@ def game_start():
 
         crlcm = pygame.image.load(pathtotextures + "chicken_right_left_closemouth.png")
         crlcm = pygame.transform.smoothscale(crlcm, (shrink_value_chicken, shrink_value_chicken))
+
+        cllcm = pygame.image.load(pathtotextures + "chicken_left_left_closemouth.png")
+        cllcm = pygame.transform.smoothscale(cllcm, (shrink_value_chicken, shrink_value_chicken))
 
         # Draw the background.
         screen.fill(background_color)
@@ -64,9 +131,13 @@ def game_start():
         text_width, text_height = game_font.size("000")
 
         pygame.draw.ellipse(screen, (0, 120, 163),
-                            (window_width - 2.25 * text_width, 0.75 * text_height, 1.5 * text_width, 1.5 * text_height), 0)
+                            (window_width - 2.25 * text_width, 0.75 * text_height, 1.5 * text_width, 1.5 * text_height),
+                            0)
 
-        screen.blit(crlcm, (window_width/2 - shrink_value_chicken, window_height/2 - shrink_value_chicken))
+        position = [window_width/2, window_height/2]
+        end_position = position
+
+        screen.blit(crlcm, (position[0] - shrink_value_chicken / 2, position[1] - shrink_value_chicken / 2))
 
         screen.blit(egg_counter_text, (window_width - 2 * text_width, text_height))
 
@@ -79,6 +150,8 @@ def game_start():
         running = True
 
         while running:
+            lay_egg = False
+
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
@@ -86,10 +159,31 @@ def game_start():
                     if event.key == pygame.K_ESCAPE:
                         running = False
                     if event.key == pygame.K_SPACE:
+                        lay_egg = True
                         egg_counter = egg_counter + 1
+
+            # Calculate the new position of the chicken.
+            if not lay_egg:
+                help_array, right = calc_position(end_position, position, distance, velocity, time_step, boundaries,
+                                                  step_size, propability, right)
+
+                # Translate the help array.
+                end_position = [help_array[0], help_array[1]]
+                position = [help_array[2], help_array[3]]
+                distance = help_array[4]
+                propability = [help_array[5], help_array[6]]
 
             # Redraw the background.
             screen.fill(background_color)
+
+            # Draw the chicken.
+            if right:
+                screen.blit(crlcm, ((position[0] - shrink_value_chicken / 2), (position[1] - shrink_value_chicken / 2)))
+            else:
+                screen.blit(cllcm, ((position[0] - shrink_value_chicken / 2), (position[1] - shrink_value_chicken / 2)))
+
+            # Draw the eggs
+            # TODO
 
             # Draw the counter stuff again.
             if egg_counter < 10:
@@ -109,18 +203,16 @@ def game_start():
                                 (window_width - 2.25 * text_width, 0.75 * text_height, 1.5 * text_width,
                                  1.5 * text_height), 0)
 
-            screen.blit(crlcm, ((window_width - shrink_value_chicken) / 2, (window_height - shrink_value_chicken) / 2))
-
             screen.blit(egg_counter_text, (window_width - 2 * text_width, text_height))
 
             pygame.display.update()
 
-            time.sleep(0.01)
+            time.sleep(1)
 
-        print "Spiel wird beendet... Ciao!"
+        print("Spiel wird beendet... Ciao!")
 
     except KeyboardInterrupt:
-        print "Shutdown requested...exiting"
+        print("Shutdown requested...exiting")
     except Exception:
         traceback.print_exc(file=sys.stdout)
 
@@ -130,9 +222,9 @@ def game_start():
 
 if __name__ == "__main__":
 
-    print "\n\n###################################################"
-    print "Spielstart von 'Das lustige Huehnchen'!"
-    print "###################################################\n\n"
+    print("\n\n###################################################")
+    print("Spielstart von 'Das lustige Huehnchen'!")
+    print("###################################################\n\n")
 
     game_start()
 
