@@ -12,7 +12,7 @@ import pygame
 
 
 def calc_position(end_position, old_position, distance_old, velocity, time_step, boundaries, step_size, propability,
-                  right):
+                  right, lay_egg):
 
     position = old_position
     distance = math.sqrt((end_position[0] - old_position[0]) ** 2 + (end_position[1] - old_position[1]) ** 2)
@@ -44,17 +44,36 @@ def calc_position(end_position, old_position, distance_old, velocity, time_step,
 
     # Or go further.
     else:
-        a = 0
-        # TODO -> Geradengleichung?
-        # position[0] = 0
-        # position[1] = 0
+        m = (old_position[1] - end_position[1]) / (old_position[0] - end_position[0])
+        n = end_position[1] - end_position[0] * m
+
+        d = velocity * time_step
+
+        p = (2 * m * n - 2 * old_position[0] - 2 * m * old_position[1]) / (1 + m ** 2)
+        q = (old_position[0] ** 2 + n ** 2 - 2 * n * old_position[1] + old_position[1] ** 2 - d ** 2) / (1 + m ** 2)
+
+        tmp_x_1 = - p / 2 + math.sqrt((p / 2) ** 2 - q)
+        tmp_x_2 = - p / 2 - math.sqrt((p / 2) ** 2 - q)
+
+        tmp_y_1 = m * tmp_x_1 + n
+        tmp_y_2 = m * tmp_x_2 + n
+
+        d_1 = math.sqrt((end_position[0] - tmp_x_1) ** 2 + (end_position[1] - tmp_y_1) ** 2)
+        d_2 = math.sqrt((end_position[0] - tmp_x_2) ** 2 + (end_position[1] - tmp_y_2) ** 2)
+
+        if d_1 < d_2:
+            position[0] = tmp_x_1
+            position[1] = tmp_y_1
+        else:
+            position[0] = tmp_x_2
+            position[1] = tmp_y_2
 
         # Turn the tides if we end up outside the boundaries.
-        if not 0 < position[0] < boundaries[0]:
+        if not 0 + 50 < position[0] < boundaries[0] - 50:
             end_position = position  # force new end point generation.
             propability[0] = 1 - propability[0]  # TODO find end point inside the boundaries.
 
-        if not 0 < position[1] < boundaries[1]:
+        if not 0 + 50 < position[1] < boundaries[1] - 50:
             end_position = position
             propability[1] = 1 - propability[1]
 
@@ -63,7 +82,8 @@ def calc_position(end_position, old_position, distance_old, velocity, time_step,
         propability = [random.random(), random.random()]
 
     # Return the calculated stuff.
-    help_array = [end_position[0], end_position[1], position[0], position[1], distance, propability[0], propability[1]]
+    help_array = [end_position[0], end_position[1], position[0], position[1], distance, propability[0], propability[1],
+                  lay_egg]
 
     return help_array, right
 
@@ -79,14 +99,14 @@ def game_start():
         # Constants
         background_color = (0, 162, 241)  # Color of the underground
         pathtotextures = os.path.dirname(os.path.realpath(__file__)) + "/textures/"  # path to the textures
-        velocity = 3  # Pixels per second.
-        step_size = 20  # Step size of each move in pixel.
+        velocity = 300  # Pixels per second.
+        step_size = 200  # Step size of each move in pixel.
 
         # Initiale values.
         propability = [random.random(), random.random()]
         distance = 0
-        time_step = 0
         right = True
+        lay_egg = False
 
         # Initialize Pygame, the clock (for FPS), and a simple counter
         pygame.init()
@@ -120,6 +140,12 @@ def game_start():
         cllcm = pygame.image.load(pathtotextures + "chicken_left_left_closemouth.png")
         cllcm = pygame.transform.smoothscale(cllcm, (shrink_value_chicken, shrink_value_chicken))
 
+        cls = pygame.image.load(pathtotextures + "chicken_left_scream.png")
+        cls = pygame.transform.smoothscale(cls, (shrink_value_chicken, shrink_value_chicken))
+
+        crs = pygame.image.load(pathtotextures + "chicken_right_scream.png")
+        crs = pygame.transform.smoothscale(crs, (shrink_value_chicken, shrink_value_chicken))
+
         # Draw the background.
         screen.fill(background_color)
 
@@ -143,14 +169,13 @@ def game_start():
 
         pygame.display.update()
 
-        clock = pygame.time.Clock()
+        clock = time.clock()
         egg_counter = 0
 
         # Endless loop:
         running = True
 
         while running:
-            lay_egg = False
 
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -163,24 +188,39 @@ def game_start():
                         egg_counter = egg_counter + 1
 
             # Calculate the new position of the chicken.
-            if not lay_egg:
-                help_array, right = calc_position(end_position, position, distance, velocity, time_step, boundaries,
-                                                  step_size, propability, right)
+            time_step = time.clock() - clock
 
-                # Translate the help array.
-                end_position = [help_array[0], help_array[1]]
-                position = [help_array[2], help_array[3]]
-                distance = help_array[4]
-                propability = [help_array[5], help_array[6]]
+            help_array, right = calc_position(end_position, position, distance, velocity, time_step, boundaries,
+                                              step_size, propability, right, lay_egg)
+
+            # Translate the help array.
+            end_position = [help_array[0], help_array[1]]
+            position = [help_array[2], help_array[3]]
+            distance = help_array[4]
+            propability = [help_array[5], help_array[6]]
+            lay_egg = help_array[7]
+
+            # Start new time measurement.
+            clock = time.clock()
 
             # Redraw the background.
             screen.fill(background_color)
 
             # Draw the chicken.
-            if right:
-                screen.blit(crlcm, ((position[0] - shrink_value_chicken / 2), (position[1] - shrink_value_chicken / 2)))
+            if lay_egg:
+                if right:
+                    screen.blit(cls, ((position[0] - shrink_value_chicken / 2),
+                                      (position[1] - shrink_value_chicken / 2)))
+                else:
+                    screen.blit(crs, ((position[0] - shrink_value_chicken / 2),
+                                      (position[1] - shrink_value_chicken / 2)))
             else:
-                screen.blit(cllcm, ((position[0] - shrink_value_chicken / 2), (position[1] - shrink_value_chicken / 2)))
+                if right:
+                    screen.blit(crlcm, ((position[0] - shrink_value_chicken / 2),
+                                        (position[1] - shrink_value_chicken / 2)))
+                else:
+                    screen.blit(cllcm, ((position[0] - shrink_value_chicken / 2),
+                                        (position[1] - shrink_value_chicken / 2)))
 
             # Draw the eggs
             # TODO
@@ -207,7 +247,7 @@ def game_start():
 
             pygame.display.update()
 
-            time.sleep(1)
+            time.sleep(0.01)
 
         print("Spiel wird beendet... Ciao!")
 
